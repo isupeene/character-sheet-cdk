@@ -1,0 +1,1291 @@
+syntax = "proto3";
+
+package ca.isupeene.charactersheet.proto;
+
+//////////////
+// Metadata //
+//////////////
+
+message ImageSource {
+    enum Type {
+        STORAGE = 0;
+        ASSET = 1;
+    }
+
+    Type type = 1;
+    string storage_path = 2;
+    string asset_path = 3;
+}
+
+message InfoSource {
+    enum Type {
+        STORAGE = 0;
+        ASSET = 1;
+        URI = 2;
+    }
+
+    Type type = 1;
+    string storage_path = 2;
+    string asset_path = 3;
+    string uri = 4;
+}
+
+message InfoPage {
+    string title = 1;
+    string content = 2;
+}
+
+message MultiPageInfo {
+    repeated InfoPage page = 1;
+}
+
+///////////////
+// Branching //
+///////////////
+
+// BranchingFeatureOptions for classes should be specified in the classes file, while those for feats
+// should be specified in the feats file.
+message BranchingFeatureOption {
+    message Source {
+        string source_name = 1;  // e.g. "Cleric", but could also be the name of a non-class feature source
+        string feature_name = 2;  // e.g. "Divine Domain" (refers to the source_id_key of the source feature)
+    }
+    repeated Source source = 1;
+    string name = 2;  // e.g. "Life". Must be unique among all BranchingFeatureOptions.
+    string description = 3;
+    InfoSource info_source = 4;
+    repeated Feature feature = 5;
+    // Use this when the desired display name is generic (such as the name of a class), and would
+    // violate the name uniqueness rule.
+    string display_name_override = 6;
+}
+
+message MultiFeatureOption {
+    message Source {
+        string source_name = 1;  // e.g. "Fighter", but could also be the name of a non-class feature source
+        string feature_name = 2;  // e.g. "Combat Superiority" (refers to the source_id_key of the source feature)
+    }
+    repeated Source source = 1;
+    string name = 2;  // e.g. "Commander's Strike". Must be unique among all MultiFeatureOptions.
+    string description = 3;
+    InfoSource info_source = 4;
+    repeated Feature feature = 5;
+}
+
+//////////////////
+// Spellcasting //
+//////////////////
+
+enum School {
+    ABJURATION = 0;
+    CONJURATION = 1;
+    DIVINATION = 2;
+    ENCHANTMENT = 3;
+    EVOCATION = 4;
+    ILLUSION = 5;
+    NECROMANCY = 6;
+    TRANSMUTATION = 7;
+}
+
+message CastingTime {
+    enum Type {
+        ACTION = 0;
+        BONUS_ACTION = 1;
+        REACTION = 2;
+        MINUTE = 3;
+        HOUR = 4;
+    }
+    Type type = 1;
+    int32 magnitude = 2;  // Only used if type is MINUTE or HOUR
+    string trigger = 3;  // Only used if type is REACTION
+}
+
+message Range {
+    enum Type {
+        SELF = 0;
+        TOUCH = 1;
+        FOOT = 2;
+        MILE = 3;
+        SIGHT = 4;
+        UNLIMITED = 5;
+        SPECIAL = 6;
+    }
+    Type type = 1;
+    int32 magnitude = 2;  // Only used if type is FOOT or MILE
+    string annotation = 3;  // e.g. "15-foot cone" in "Range: Self (15-foot cone)", as in burning hands
+}
+
+message MaterialComponent {
+    string description = 1;
+    int32 cost = 2;
+    bool consumed = 3;
+    bool required = 4;  // True if the component is required, even though it is not consumed and has no specified cost
+}
+
+message Duration {
+    enum Type {
+        INSTANTANEOUS = 0;
+        ROUND = 1;
+        MINUTE = 2;
+        HOUR = 3;
+        DAY = 4;
+        YEAR = 5;
+        UNTIL_DISPELLED = 6;
+        UNTIL_DISPELLED_OR_TRIGGERED = 7;
+    }
+    Type type = 1;
+    int32 magnitude = 2;  // Only used if type is MINUTE, HOUR, DAY, or YEAR.
+    bool concentration = 3;
+}
+
+message Spell {
+    // The name of the spell. Don't wear it out!
+    string name = 1;
+    // This is where you get to be creative! Write a description that summarizes the effects of the spell.
+    // Take a look at a few of the descriptions I wrote to get a sense of what I think is important.
+    // In particular, make sure to note the amount of damage a spell does, for damage spells.
+    // (I also like to explicitly use the word 'attack' when it's an actual spell attack, rather
+    // than a saving throw).
+    string short_description = 2;
+    // This is a submessage indicating where the markdown file for this spell is located.
+    // 'type' will always be ASSET for built-in content, and 'asset_path' needs to be set.
+    // 'storage_path' should remain unset for built-in content.
+    InfoSource full_description = 3;
+    // The level of the spell. 0 for cantrips.
+    int32 level = 4;
+    // The school of magic the spell belongs to. ABJURATION, EVOCATION, etc.
+    School school = 5;
+    // Whether the spell can be cast as a ritual.  This is indicated in the players handbook by a
+    // parenthetical '(ritual)' after the level and school.
+    // You may leave this out if a spell cannot be cast as a ritual.
+    bool ritual = 6;
+    // How long the spell takes to cast.
+    // For reaction spells, the trigger should be included, and phrased as if to complete the
+    // sentence: "You may cast this spell as a reaction <trigger>", and be copied from the
+    // Player's Handbook.
+    // For spells whose casting time is one action, you may omit the casting time.
+    CastingTime casting_time = 7;
+    // The range of the spell.  You may omit this field if the spell has a range of 'self'.
+    Range range = 8;
+    // Indicated by a 'V' in the Player's Handbook. You may omit this field if false.
+    bool has_verbal_component = 9;
+    // Indicated by an 'S' in the Player's Handbook. You may omit this field if false.
+    bool has_somatic_component = 10;
+    // The material components involved in casting the spell. These are included in a parenthetical
+    // following the 'M' in the Player's Handbook.  Include one entry per component, and include all
+    // the flowery detail as in the Player's Handbook, e.g. "one copper piece placed on each of the
+    // corpse's eyes, which must remain there for the duration".
+    // HOWEVER, when the Player's Handbook indicates a cost for the components, exclude that cost
+    // from the description, and instead include it in the 'cost' field (in units of gp, as you
+    // would expect).
+    // Set the 'consumed' field only if the spell is consumed.
+    // The 'required' field is  a little trickier.  Set it only if the component is NOT consumed,
+    // but playes an essential physical role in the casting of the spell.  Search for 'required'
+    // in spells.textpb to see existing examples of this.
+    repeated MaterialComponent material_component = 11;
+    // This is used rarely - only if the material component text in the book can't be neatly
+    // decomposed into a comma-separated list of components.  Search for "material_component_text"
+    // in spells.textpb to see the existing examples.
+    string material_component_text = 12;
+    // How long the spell lasts for. You may omit this field if the spell has a duration of 'instantaneous'.
+    Duration duration = 13;
+    // Whether the spell involves making a spell attack. You may omit this field if false.
+    bool attack_roll = 14;
+}
+
+message SpellList {
+    repeated Spell spell = 1;
+}
+
+message ClassSpells {
+    string class_name = 1;
+    repeated string spell = 2;
+}
+
+message ClassSpellsList {
+    repeated ClassSpells class_spell = 1;
+}
+
+///////////////
+// Equipment //
+///////////////
+
+enum WeaponCategory {
+    WEAPON_CATEGORY_SIMPLE = 0;
+    WEAPON_CATEGORY_MARTIAL = 1;
+    WEAPON_CATEGORY_IMPROVISED = 2;
+    WEAPON_CATEGORY_UNARMED = 3;
+}
+
+enum WeaponRangeClass {
+    WEAPON_RANGE_MELEE = 0;
+    WEAPON_RANGE_RANGED = 1;
+}
+
+enum DamageType {
+    ACID = 0;
+    BLUDGEONING = 1;
+    COLD = 2;
+    FIRE = 3;
+    FORCE = 4;
+    LIGHTNING = 5;
+    NECROTIC = 6;
+    PIERCING = 7;
+    POISON = 8;
+    PSYCHIC = 9;
+    RADIANT = 10;
+    SLASHING = 11;
+    THUNDER = 12;
+}
+
+// TODO: Allow custom WeaponInfo for magic weapons?
+message WeaponInfo {
+    WeaponCategory category = 1;
+    WeaponRangeClass range_class = 2;
+    // TODO: Consider making this a separate class instead of a string
+    string damage = 3;
+    DamageType damage_type = 4;
+    bool ammunition = 5;
+    bool finesse = 6;
+    bool heavy = 7;
+    bool light = 8;
+    bool loading = 9;
+    bool reach = 10;
+    bool special = 11;
+    bool thrown = 12;
+    bool two_handed = 13;
+    bool versatile = 14;
+    int32 standard_range = 15;
+    int32 long_range = 16;
+    string versatile_damage = 17;
+    string special_description = 18;
+}
+
+enum ArmorCategory {
+    ARMOR_CATEGORY_NONE = 0;
+    ARMOR_CATEGORY_LIGHT = 1;
+    ARMOR_CATEGORY_MEDIUM = 2;
+    ARMOR_CATEGORY_HEAVY = 3;
+}
+
+message ArmorInfo {
+    ArmorCategory category = 1;
+    int32 base_armor_class = 2;
+    bool stealth_disadvantage = 3;
+    int32 strength_prerequisite = 4;
+    bool metallic = 5;
+}
+
+// TODO: Comment on mixed fraction constraints: https://www.compart.com/en/unicode/decomposition/%3Cfraction%3E
+message ContainerInfo {
+    int32 solid_capacity_tenth_cubic_feet = 1;
+    int32 liquid_capacity_ounces = 2;
+    int32 weight_capacity_pounds = 3;
+    // Items can be strapped to the outside of a strappable container
+    // (backpack) provided the overall weight limit is not exceeded.
+    bool strappable = 4;
+    // Extradimensional items such as bag of holding or portable hole are
+    // allowed to have a higher capacity than their external size.
+    // Additionally, extradimensional items cannot be placed inside each
+    // other. Attempting to do so will destroy both items and open a
+    // portal to the Astral Plane.
+    bool extradimensional = 5;
+
+    // Capacity for holding specific items, e.g. Crossbow Case or Quiver
+    message ItemCapacity {
+        enum Type {
+            SPECIFIC = 0;
+            ITEM_TYPE = 1;
+        }
+        Type type = 1;
+        string specific_item = 2;
+        Item.Type item_type = 3;
+        int32 quantity = 4;
+    }
+    ItemCapacity item_capacity = 6;
+}
+
+message AnimalInfo {
+    int32 speed = 1;
+    int32 carrying_capacity_pounds = 2;
+}
+
+enum Unit {
+    ENTITY = 0;
+    OUNCE = 1;
+    PINT = 2;
+    QUART = 3;
+    GALLON = 4;
+    VIAL = 5;
+    FLASK = 6;
+    BOTTLE = 7;
+    BARREL = 8;
+}
+
+message Item {
+    // TODO: Consider an enum like this for talent categories?
+    enum Type {
+        GENERAL = 0;
+        WEAPON = 1;
+        ARMOR = 2;
+        AMMUNITION = 3;
+        ARCANE_FOCUS = 4;
+        DRUIDIC_FOCUS = 5;
+        HOLY_SYMBOL = 6;
+        EQUIPMENT_PACK = 7;
+        CONTAINER = 8;
+        ARTISANS_TOOLS = 9;
+        MISCELLANEOUS_TOOLS = 10;
+        GAMING_SET = 11;
+        MUSICAL_INSTRUMENT = 12;
+        ANIMAL = 13;
+        LAND_VEHICLE = 14;
+        WATER_VEHICLE = 15;
+        AIR_VEHICLE = 16;
+        FOOD_AND_DRINK = 17;
+        TRINKET = 18;
+        MONEY = 19;
+    }
+    string name = 1;
+    string indefinite_name = 2;
+    string plural_name = 3;
+    string short_description = 4;
+    string full_description = 5;
+    Type type = 6;
+    InfoSource info_source = 7;
+    // This is a little broader than the fluid unit used to quantify
+    // fluid equipment.  This is used to describe the costs and weights
+    // of objects in terms of the unit, for example the amount a chain
+    // weighs "per foot".
+    string unit = 8;
+    int32 unit_cost_cp = 9;
+    int32 unit_weight_lb = 10;
+    int32 unit_weight_quarter_lb = 11;
+    WeaponInfo weapon_info = 12;
+    ArmorInfo armor_info = 13;
+    repeated Equipment equipment_pack_contents = 14;
+    ContainerInfo container_info = 15;
+    AnimalInfo animal_info = 16;
+    int32 speed_miles_per_hour = 17;
+    bool fluid = 18;
+}
+
+message ItemList {
+    repeated Item item = 1;
+}
+
+////////////
+// Talent //
+////////////
+
+message Talent {
+    string name = 1;
+    string category = 2;
+    string ability = 3;
+    // Hidden talents can't be selected normally, but must be granted as a feature, e.g. Druidic or Thieves' Cant
+    bool hidden = 4;
+}
+
+message TalentList {
+    repeated Talent talent = 1;
+}
+
+//////////
+// Feat //
+//////////
+
+message FeatPrerequisite {
+    enum Type {
+        // The character must have at least one of ability_scores greater than or equal to 13.
+        ABILITY_SCORE_MINIMUM = 0;
+        // The character must have proficiency in the category of armor denoted by armor_category.
+        ARMOR_PROFICIENCY = 1;
+        // The character must have the ability to cast at least one spell.
+        SPELLCASTING = 2;
+    }
+    Type type = 1;
+    repeated string ability = 2;
+    ArmorCategory armor_category = 3;
+}
+
+message Feat {
+    string name = 1;
+    string short_description = 2;
+    InfoSource info_source = 3;
+    FeatPrerequisite prerequisite = 4;
+    repeated Feature feature = 5;
+}
+
+message FeatList {
+    repeated Feat feat = 1;
+    repeated BranchingFeatureOption feat_option = 2;
+}
+
+/////////////
+// Feature //
+/////////////
+
+message AbilityScoreIncreaseConstraint {
+    // TODO: Remove EXCLUSION and just allow either type to have an exclusion key.
+    enum Type {
+        // Bonus must be one of the specified ability scores.
+        SPECIFIC = 0;
+        // Bonus cannot be for the same ability as another bonus with the specified correlation_key.
+        EXCLUSION = 1;
+        ANY = 2;
+    }
+
+    Type type = 1;
+    repeated string specific_ability_score = 2;
+    string correlation_key = 3;  // TODO: Rename to exclusion_key, or exclusion_correlation_key?
+}
+
+message AbilityScoreIncrease {
+    AbilityScoreIncreaseConstraint constraint = 1;
+    int32 number = 2;
+    int32 magnitude = 3;
+    // Allowed correlations: ABILITY_SCORE_INCREASE (exclusion), SAVING_THROW_PROFICIENCY
+    string correlation_key = 4;
+    string prompt = 5;
+}
+
+enum ProficiencyLevel {
+    NORMAL = 0;
+    HALF_ROUND_DOWN = 1;
+    HALF_ROUND_UP = 2;
+    DOUBLE = 3;
+    NONE = 4;
+}
+
+message TalentProficiencyOptionConstraint {
+    enum Type {
+        ANY = 0;
+        CATEGORY = 1;
+        SPECIFIC_TALENT = 2;
+    }
+    Type type = 1;
+    repeated string category = 2;
+    repeated string specific_talent = 3;
+}
+
+message TalentProficiencyOption {
+    TalentProficiencyOptionConstraint constraint = 1;
+    ProficiencyLevel proficiency_level = 2;
+    int32 number = 3;
+    repeated string default_selection = 4;
+}
+
+message SavingThrowProficiencyOptionConstraint {
+    enum Type {
+        ALL = 0;
+        ANY = 1;
+        SPECIFIC_ABILITY = 2;
+        // The proficiency must be for the same ability as an AbilityScoreBonus with the specified
+        // correlation_key.
+        CORRELATION = 3;
+    }
+    Type type = 1;
+    repeated string specific_ability = 2;
+    string correlation_key = 3;
+}
+
+// TODO: Just rename to SavingThrowProficiency, and put everything in this proto?
+//       (Just like WeaponProficiency)
+message SavingThrowProficiencyOption {
+    SavingThrowProficiencyOptionConstraint constraint = 1;
+}
+
+message WeaponProficiency {
+    enum Type {
+        SPECIFIC = 0;
+        CATEGORY = 1;
+        ANY = 2;
+    }
+    Type type = 1;
+    repeated string specific_weapon = 2;
+    repeated WeaponCategory category = 3;
+    // TODO: Change 'number' to 'quantity' everywhere.
+    int32 number = 4;  // Only used for type ANY
+}
+
+enum SpellcastingProgression {
+    SPELLCASTING_PROGRESSION_NONE = 0;
+    SPELLCASTING_PROGRESSION_FULL = 1;
+    SPELLCASTING_PROGRESSION_HALF = 2;
+    SPELLCASTING_PROGRESSION_ONE_THIRD = 3;
+    SPELLCASTING_PROGRESSION_PACT_MAGIC = 4;
+}
+
+message ExpandedSpellList {
+    string class_name = 1;
+    repeated string spell = 2;
+}
+
+message SpellsKnown {
+    enum Type {
+        // 'number' of spells from 'spell_list' may be selected.
+        SPELL_LIST = 0;
+        // The specified spells are known. The character may cast them as if they belonged to 'spell_list'
+        SPECIFIC = 1;
+        // 'number' spells from any spell list may be selected.
+        // The character may cast them as if they belonged to 'spell_list' (e.g. Bard's Magical Secrets feature).
+        ANY = 2;
+    }
+    message LevelConstraint {
+        enum Type {
+            // Levels for which the character would have spell slots based only on their levels in
+            // the class from which this feature is sourced. E.g. Bard or Sorcerer spells known
+            SPELL_SLOTS = 0;
+            // Like SPELL_SLOTS, but cantrips are also allowed. E.g. Bard's 'Magical Secrets'
+            SPELL_SLOTS_AND_CANTRIPS = 1;
+            // Only the specified level is allowed.
+            SPECIFIC_LEVEL = 2;
+        }
+        Type type = 1;
+        int32 specific_level = 2;
+    }
+    Type type = 1;
+    // Should be populated, regardless of the source type.
+    string spell_list = 2;
+    int32 number = 3;
+    repeated string specific_spell = 4;
+    LevelConstraint level_constraint = 5;
+    // This spell may be cast using a consumable resource specifying the same correlation key.
+    // Note that all non-cantrip spells acquired by means other than a class MUST have correlation key set.
+    string correlation_key = 6;
+    // This feature may only be used to learn a spell that requires an attack roll.
+    bool requires_attack_roll = 7;
+    // This feature may only be used to learn rituals.
+    bool requires_ritual = 8;
+}
+
+message SpellsPrepared {
+    enum Type {
+        // The character may prepare a number of spells defined by 'quantity' using the ability
+        // score modifier for 'ability'.  The spells must come from 'spell_list'
+        SPELL_LIST = 0;
+        // The character may prepare a number of spells defined by 'quantity' using the ability
+        // score modifier for 'ability'.  The spells must come from the character's spellbook.
+        // The character may cast these spells as if they belonged to 'spell_list'
+        SPELLBOOK = 1;
+        // The specified spells are always prepared.  The character may cast them as if they belonged to 'spell_list'
+        // TODO: Consider using SPELLS_KNOWN for this. Because that's literally what it is.
+        SPECIFIC = 2;
+    }
+    enum Quantity {
+        LEVEL_PLUS_MODIFIER = 0;
+        HALF_LEVEL_PLUS_MODIFIER = 1;
+    }
+    Type type = 1;
+    Quantity quantity = 2;  // Not used for source: SPECIFIC
+    string spell_list = 3;
+    string ability = 4;  // Not used for source: SPECIFIC
+    repeated string specific_spell = 5;  // Only used for source: SPECIFIC
+}
+
+message WeaponDescription {
+    // The chosen weapon must fall into one of the specified categories.
+    // If no categories are present, any weapon category is allowed.
+    repeated WeaponCategory category = 1;
+    // The chosen weapon must fall into one of the specified range classes.
+    // If no range classes are present, any range class is allowed.
+    repeated WeaponRangeClass range_class = 2;
+}
+
+message EquipmentOptionConstraint {
+    enum Type {
+        SPECIFIC = 0;
+        WEAPON = 1;
+        ITEM_TYPE = 2;
+    }
+    Type type = 1;
+    // Note that spellbooks are a special case, which MUST be in their own starting equipment entry with
+    // no options allowed.
+    string specific_item = 2;
+    WeaponDescription weapon = 3;
+    Item.Type item_type = 4;
+}
+
+message EquipmentPackageElement {
+    EquipmentOptionConstraint constraint = 1;
+    int32 quantity = 2;
+    Unit unit = 5;
+    string prompt = 3;
+    repeated ItemState item_state = 4;
+}
+
+message EquipmentPackage {
+    string name = 1;
+    repeated EquipmentPackageElement equipment = 2;
+}
+
+message EquipmentOption {
+    repeated EquipmentPackage option = 1;
+}
+
+message Resource {
+    message Quantity {
+        enum Type {
+            // level_progression.start_level refers to the character's total level
+            TOTAL_LEVEL_PROGRESSION = 0;
+            // level_progression.segment.start_level refers to the character's level in the source class
+            // Requires that the feature is ultimately sourced from a class.
+            CLASS_LEVEL_PROGRESSION = 1;
+            // The resource can be used a number of times equal to the ability score modifier
+            // specified by 'ability' + 'extra_uses'
+            ABILITY_SCORE = 2;
+            // The resource can be used a number of times equal to the character's level in the source class
+            // Requires that the feature is ultimately sourced from a class.
+            CLASS_LEVEL_EXACT = 3;
+        }
+        message LevelQuantity {
+            enum Type {
+                SPECIFIC = 0;
+                UNLIMITED = 1;
+            }
+            int32 start_level = 1;
+            Type type = 2;
+            int32 quantity = 3;
+        }
+        Type type = 1;
+        repeated LevelQuantity level_progression = 2;
+        // TODO: Should abilities be an enum?
+        // Only applies to type ABILITY_SCORE
+        string ability = 3;
+        // Only applies to type ABILITY_SCORE
+        int32 extra_uses = 4;
+        // Only applies to type CLASS_LEVEL_EXACT.  Values less than 1 are treated as 1.
+        int32 class_level_multiplier = 5;
+    }
+
+    enum Recovery {
+        SHORT_REST = 0;
+        LONG_REST = 1;
+    }
+    message ResourceDie {
+        int32 start_level = 1;
+        int32 die = 2;
+    }
+    Quantity quantity = 1;
+    Recovery recovery = 2;
+    // Used if the resource is associated with a die such as Bardic Inspiration or Combat Superiority
+    repeated ResourceDie die_progression = 3;
+    // If not empty, corresponds to the correlation key in a SPELLS_KNOWN feature. This resource is
+    // used to cast the spell associated with this key, and the display name of the resource will
+    // change to the name of the spell selected via that feature.
+    // TODO: Use correlation key for other effects than casting a spell. e.g. rage effect?
+    string correlation_key = 4;
+}
+
+message HitPoints {
+    enum Type {
+        CHARACTER_LEVEL = 0;
+        // Requires that the feature is ultimately sourced from a class.
+        CLASS_LEVEL = 1;
+    }
+    Type type = 1;
+    int32 hit_points_per_level = 2;
+}
+
+message PassiveSkillBonus {
+    string skill = 1;
+    int32 bonus = 2;
+}
+
+message UnarmoredDefense {
+    string ability = 1;
+    bool shields_allowed = 2;
+}
+
+message MultiFeatureGroup {
+    message LevelQuantity {
+        int32 level = 1;
+        int32 quantity = 2;
+    }
+    enum ReplacementPolicy {
+        NEVER = 0;
+        ON_SELECTION = 1;
+        EVERY_LEVEL = 2;
+    }
+    string name = 1;  // e.g. Maneuver
+    // TODO: This is probably not globalization-friendly.
+    string plural_name = 2;  // e.g. Maneuvers
+    repeated LevelQuantity level_quantity = 3;
+    // One selection can be changed at level-ups where the specified condition is met.
+    ReplacementPolicy replacement_policy = 4;
+    // Any selections specified here must be selected when this feature is gained, using the
+    // quantity quota specified for the level at which it is gained. However, they may still be
+    // replaced at later levels, according to the replacement policy.
+    repeated string locked_selection = 5;
+}
+
+message SourceIdUnit {
+    enum Type {
+        UNIVERSAL = 0;
+        RACE = 1;
+        CLASS = 2;
+        BACKGROUND = 3;
+        BRANCHING_FEATURE = 4;
+        MULTI_FEATURE = 5;
+        FEAT = 6;
+    }
+    string feature_name = 1;  // Descriptive, e.g. 'Dragonborn Strength'
+    Type type = 2;  // e.g. RACE
+    string source_name = 3;  // e.g. 'Dragonborn'
+    int32 level = 4;  // For Race, Class, and Branching Feature, the level at which the feature is gained.
+}
+
+// A trail of IDs that both uniquely identifies the feature source for a given feature or bonus,
+// and provides the identifying names of the features.
+message SourceId {
+    repeated SourceIdUnit id_unit = 1;
+}
+
+// TODO: Incorporate Resources and the effect of spending that resource in the same Feature?
+message Feature {
+    // Note that each of these types must be present in FEATURE_SOURCE_TYPES and the ConstraintMap.
+    enum Type {
+        // The character gets some other feature which is not encoded, but merely expressed in text.
+        OTHER = 0;
+        // Allow the character to select a BranchingFeatureOption, such as a Fighting Style or a Martial Archetype
+        BRANCHING_FEATURE = 1;
+        // Proficiency with skills, tools or languages, such as from class, race, or background features.
+        TALENT_PROFICIENCY = 2;
+        // Proficiency with specific saving throws, such as from class features or the Resilient feat.
+        SAVING_THROW_PROFICIENCY = 3;
+        // Proficiency with certain types of weapons, such as from class or race features.
+        WEAPON_PROFICIENCY = 4;
+        // Proficiency with a certain type of armor, such as from class or race features.
+        ARMOR_PROFICIENCY = 5;
+        // Proficiency with shields.
+        SHIELD_PROFICIENCY = 6;
+        // An ability score increase, such as from racial traits.
+        ABILITY_SCORE_INCREASE = 7;
+        // A feat, such as when variant human is selected.
+        FEAT = 8;
+        // An ability score increase or feat, such as when a character reaches level 4.
+        ABILITY_SCORE_INCREASE_OR_FEAT = 9;
+        // Progression of spell slots, granted by spellcasting classes or class archetypes.
+        SPELLCASTING_PROGRESSION = 10;
+        // Spells known, such as for Bard or Warlock, as well as cantrips for all spellcasting classes.
+        SPELLS_KNOWN = 11;
+        // Spellbook feature for wizards / ritual casters. This feature MUST be accompanied by a
+        // totally constrained EQUIPMENT feature that grants them a 'spellbook'.
+        // TODO: Rename to SPELLBOOK_SPELLS, add "SPELLBOOK" feature type for the ability to add spells you find on your adventure.
+        SPELLBOOK = 12;
+        // Spells that can be prepared, such as for Clerics and Druids.
+        SPELLS_PREPARED = 13;
+        // Expansions to the class's spell list, as for Warlocks.
+        EXPANDED_SPELL_LIST = 14;
+        // Options for choosing starting equipment, e.g. "(a) a martial weapon and a shield or (b) two martial weapons"
+        EQUIPMENT = 15;
+        // Walking speed increases
+        SPEED = 16;
+        // Consumable resources that regenerate after a short or long rest.
+        RESOURCE = 17;
+        // Provides either a fixed number of hit points, or a certain number of hit points per
+        // class- or character-level.
+        HIT_POINTS = 18;
+        // A bonus to passive checks for a particular skill, such as granted by the Observant feat.
+        PASSIVE_SKILL_BONUS = 19;
+        // A bonus to initiative, such as granted by the Alert feat.
+        INITIATIVE_BONUS = 20;
+        // A bonus to AC while not wearing armor, such as given to Monks and Barbarians.
+        UNARMORED_DEFENSE = 21;
+        // Allow the character to select one or more options associated with the feature.
+        // Includes the Fighter's Maneuvers, the Monk's Disciplines, the Sorcerer's Wild Magic, and
+        // the Warlock's Invocations
+        MULTI_FEATURE_OPTION = 22;
+    }
+    enum MulticlassCharacteristics {
+        ANY = 0;
+        FIRST_CLASS = 1;
+        MULTICLASS = 2;
+    }
+    Type type = 1;
+    // NOTE WELL ALL YE WHO ENTER HERE:
+    // source_id_key must be unique within a given feature source (e.g. race, class, branching_feature, etc)
+    // There are no uniqueness constraints for display_name.
+    // source_id will be populated by the Rules when the feature is retrieved.
+    string source_id_key = 2;
+    string display_name = 3;
+    SourceId source_id = 4;
+    // Whether to show this feature on the Features tab.
+    // Features like "Tides of Chaos" should set this to true, while features like "Base Walking Speed" should default to false.
+    bool show_in_feature_list = 5;
+    // The level at which this feature becomes active.
+    // For features sourced from a Class, this is the level in that class.
+    // Otherwise, it is the overall character level.
+    int32 level = 6;
+    MulticlassCharacteristics multiclass_characteristics = 7;
+    TalentProficiencyOption talent_proficiency = 8;
+    SavingThrowProficiencyOption saving_throw_proficiency = 9;
+    WeaponProficiency weapon_proficiency = 10;
+    ArmorCategory armor_proficiency = 11;
+    AbilityScoreIncrease ability_score_increase = 12;
+    SpellcastingProgression spellcasting_progression = 13;
+    SpellsKnown spells_known = 14;  // Used for SPELLS_KNOWN and SPELLBOOK
+    SpellsPrepared spells_prepared = 15;
+    ExpandedSpellList expanded_spell_list = 16;
+    EquipmentOption equipment = 17;
+    int32 speed_bonus = 18;
+    Resource resource = 19;
+    HitPoints hit_points = 20;
+    PassiveSkillBonus passive_skill_bonus = 21;
+    int32 initiative_bonus = 22;
+    UnarmoredDefense unarmored_defense = 23;
+    MultiFeatureGroup multi_feature_group = 24;
+}
+
+message FeatureList {
+    string name = 1;
+    repeated Feature feature = 2;
+}
+
+///////////
+// Class //
+///////////
+
+message Class {
+    string name = 1;
+    string short_description = 2;
+    InfoSource info_source = 3;
+    ImageSource thumbnail = 4;
+    repeated Feature feature = 5;
+    int32 hit_die = 6;
+}
+
+message ClassList {
+    repeated Class class = 1;
+    repeated BranchingFeatureOption class_option = 2;
+    repeated MultiFeatureOption multi_option = 3;
+}
+
+message ClassLevel {
+    string class_name = 1;
+    int32 level = 2;
+}
+
+//////////
+// Race //
+//////////
+
+message Race {
+    string name = 1;
+    string short_description = 2;
+    string parent_race = 3;
+    InfoSource info_source = 4;
+    ImageSource thumbnail = 5;
+    repeated Feature feature = 6;
+    // Specified in Subraces only - e.g. if the subrace is "Stout" and the parent race is "Halfling",
+    // the standalone_name would be "Stout Halfling".
+    string standalone_name = 7;
+}
+
+message RaceList {
+    repeated Race race = 1;
+    repeated Race subrace = 2;
+}
+
+////////////////
+// Background //
+////////////////
+
+message BackgroundElementCategory {
+    string name = 1;
+    string singular_name = 2;
+    repeated string option = 3;
+
+    message OptionVariation {
+        string text = 1;
+        int32 index = 2;
+    }
+    repeated OptionVariation option_variation = 4;
+}
+
+message Background {
+    string name = 1;
+    InfoSource info_source = 2;
+    repeated BackgroundElementCategory background_element = 3;
+    repeated Feature feature = 4;
+}
+
+message BackgroundList {
+    repeated Background background = 1;
+}
+
+message BackgroundElement {
+    string category_name = 1;
+    string description = 2;
+}
+
+enum Alignment {
+    LAWFUL_GOOD = 0;
+    NEUTRAL_GOOD = 1;
+    CHAOTIC_GOOD = 2;
+    LAWFUL_NEUTRAL = 3;
+    NEUTRAL = 4;
+    CHAOTIC_NEUTRAL = 5;
+    LAWFUL_EVIL = 6;
+    NEUTRAL_EVIL = 7;
+    CHAOTIC_EVIL = 8;
+}
+
+message CustomizedBackground {
+    string name = 1;
+    repeated BackgroundElement element = 2;
+    string backstory = 3;
+    Alignment alignment = 4;
+}
+
+///////////////
+// Equipment //
+///////////////
+
+// TODO: Both Equipment and SpellState need to have EquipmentSource. This needs to be set for
+//       all items and for spellbook spells.
+message EquipmentSource {
+    enum Type {
+        // The equipment came from a source specified by the player.
+        DESCRIPTIVE = 0;
+        // The equipment came from an EQUIPMENT feature, such as starting equipment from class
+        // or background, or from the Ritual Caster feat.
+        FEATURE = 1;
+    }
+    Type type = 1;
+    string source_description = 2;
+    SourceId source_id = 3;
+    string package_name = 4;  // For type FEATURE if there are multiple options.
+}
+
+message SpellState {
+    string spell_name = 1;
+    // Whether or not the spell was inscribed on the object by its current owner.
+    // Only spells where this is true can be prepared by a Wizard, or cast as a ritual.
+    bool inscribed_by_owner = 2;
+}
+
+message Table {
+    message Row {
+        repeated string entry = 1;
+    }
+    Row headings = 1;
+    repeated Row row = 2;
+}
+
+message DamageResistance {
+    enum Type {
+        ALL = 0;
+        DAMAGE_TYPE = 1;
+    }
+    Type type = 1;
+    bool magic_ignores_resistance = 2;
+    bool silver_ignores_resistance = 3;
+    repeated DamageType damage_type = 4;
+}
+
+message Slaying {
+    string target = 1;
+    int32 save_dc = 2;
+    // TODO: Think about using a DamageDice message containing these two fields
+    int32 damage_die_value = 3;
+    int32 damage_die_quantity = 4;
+}
+
+message AbilityScoreIncreaseEnchantment {
+    string ability = 1;
+    int32 bonus = 2;
+}
+
+message MaxAbilityScoreIncrease {
+    string ability = 1;
+    int32 increase = 2;
+}
+
+message AbilityCheckAdvantage {
+    enum Type {
+        ABILITY = 0;
+        SKILL = 2;
+    }
+    Type type = 1;
+    // Used for both ABILITY and SKILL types.  For example, an enchantment or feature that grants a
+    // bonus to Charisma (Persuasion) checks would not apply to Intelligence (Persuasion) checks.
+    string ability = 2;
+    string skill = 3;
+}
+
+message SavingThrowAdvantage {
+    enum Type {
+        ALL = 0;
+        ABILITY = 1;
+    }
+    Type type = 1;
+    string ability = 2;
+}
+
+message Darkvision {
+    int32 range = 1;
+    bool see_through_magical_darkness = 2;
+    // e.g. Goggles of Night
+    bool improve_existing_darkvision = 3;
+}
+
+message MagicItemResource {
+    // TODO: Handle Cloak of Invisibility style of recovery
+    enum RecoveryType {
+        ALL = 0;
+        DIE = 1;
+        NONE = 2;
+    }
+    int32 charges = 1;
+    RecoveryType recovery_type = 2;
+    // Used for DIE recovery type. This is allowed to be a number like d3 (1d6 / 2)
+    int32 recovery_die = 3;
+    // If present, this key must correlate to an ItemEnchantment of type EFFECT
+    // to indicate which effect is activated by a use of this resource.
+    // If it's empty, it's presumed that the effect is of type "OTHER"
+    // TODO: Figure it if correlation to the OTHER effect is needed, and if so, how to implement
+    string correlation_key = 4;
+}
+
+message MovementSpeed {
+    enum Type {
+        EQUAL_TO_WALKING_SPEED = 0;
+        SPECIFIC = 1;
+    }
+    Type type = 1;
+    int32 specific_speed = 2;
+}
+
+message UnarmedStrikeEnhancement {
+    bool magic_weapon = 1;
+    int32 attack_bonus = 2;
+    int32 damage_die_value = 3;
+    int32 damage_die_quantity = 4;
+}
+
+message ItemEffect {
+    // Used if this is associated with an ItemEnchantment.
+    // Correlates with the MagicItemResource used to activate this effect.
+    string correlation_key = 1;
+}
+
+enum Condition {
+    BLINDED = 0;
+    CHARMED = 1;
+    DEAFENED = 2;
+    FRIGHTENED = 3;
+    GRAPPLED = 4;
+    INCAPACITATED = 5;
+    INVISIBLE = 6;
+    PARALYZED = 7;
+    PETRIFIED = 8;
+    POISONED = 9;
+    PRONE = 10;
+    RESTRAINED = 11;
+    STUNNED = 12;
+    UNCONSCIOUS = 13;
+}
+
+// TODO: Handle Curses
+message ItemEnchantment {
+    // TODO: Dictate in the Rules which ItemEnchantment Types can be applied to which Item Types.
+    // TODO: Dictate rarity of each ItemEnchantment Type (except OTHER) in the Rules.
+    enum Type {
+        // Used for effects that are not handled by the Character Sheet app itself, but are instead
+        // merely described textually.  It is up to the player and the DM to implement the effect.
+        // Example magic items include "Amulet of Proof against Detection and Location".
+        OTHER = 0;
+        // For weapons and ammunition, grants the attack and damage bonus only when the attack uses that
+        // weapon or ammunition.  For all other items, all weapons and ammunition are affected.
+        // TODO: May need other restrictions. E.g. a magic gauntlet might only apply bonuses only to attacks with that hand
+        ATTACK_AND_DAMAGE_BONUS = 1;
+        DAMAGE_BONUS = 2;
+        AC_BONUS = 3;
+        SAVING_THROW_BONUS = 4;
+        // For armor, turns critical hits into normal hits.
+        // For weapons, deals automatic critical hits to objects, and bypasses resistance and immunity to
+        // nonmagical weapons when specified in the monster's stat block.
+        ADAMANTINE = 5;
+        // Increases the specified ability score to the specified minimum. Has no effect if the character's
+        // specified ability score is already greater than or equal to the specified minimum.
+        MINIMUM_ABILITY_SCORE = 6;
+        DAMAGE_RESISTANCE = 7;
+        DAMAGE_IMMUNITY = 8;
+        SLAYING = 9;
+        ABILITY_SCORE_INCREASE = 10;
+        // E.g. Manual of Bodily Health, Hammer of Thunderbolts
+        MAX_ABILITY_SCORE_INCREASE = 27;
+        ABILITY_CHECK_ADVANTAGE = 11;
+        SAVING_THROW_ADVANTAGE = 12;
+        DARKVISION = 13;
+        TALENT_PROFICIENCY = 14;
+        HIT_POINTS = 15;
+        // TODO: Merge into "EFFECT"?
+        SPELL_AT_WILL = 16;
+        EFFECT = 17;
+        JUMP_MULTIPLIER = 18;
+        IGNORE_ENCUMBRANCE_SPEED_PENALTY = 20;
+        IGNORE_ARMOR_SPEED_PENALTY = 21;
+        WALKING_SPEED = 28;
+        MINIMUM_WALKING_SPEED = 19;
+        CLIMBING_SPEED = 22;
+        SWIMMING_SPEED = 23;
+        FLYING_SPEED = 24;
+        IGNORE_DIFFICULT_TERRAIN = 33;
+        UNARMED_STRIKE_ENHANCEMENT = 25;
+        IGNORE_PROFICIENCY_RESTRICTIONS = 26;
+        // E.g. Mithral Armor
+        IGNORE_STRENGTH_RESTRICTIONS = 30;
+        PROFICIENCY_BONUS_INCREASE = 29;
+        DISEASE_IMMUNITY = 31;
+        CONDITION_IMMUNITY = 32;
+        SPELL_ATTACK_BONUS = 34;
+        SPELL_SAVE_DC_BONUS = 35;
+    }
+    Type type = 1;
+    // OTHER
+    string description = 2;
+    // A table such as that describing Alchemy Jug or Apparatus of Kwalish
+    Table table = 3;
+    // Bonuses with 'activation_condition' set are not always active, but the condition will appear
+    // as a suggestion when the user enters the appropriate context. For example, if a
+    // weapon gives +1 against dragons, this will be indicated when the player taps
+    // their attack block.
+    string activation_condition = 4;
+    // Whether the specific enchantment requires attunement to use.
+    // Some items can be attuned to, but have some basic effects that
+    // are active regardless of whether or not the user is attuned.
+    bool requires_attunement = 27;
+    // ATTACK_AND_DAMAGE_BONUS, SAVING_THROW_BONUS, AC_BONUS, DAMAGE_BONUS, PROFICIENCY_BONUS_INCREASE
+    int32 bonus_magnitude = 5;
+    // DAMAGE_BONUS
+    int32 bonus_damage_die_value = 6;
+    // DAMAGE_BONUS
+    int32 bonus_die_die_quantity = 7;
+    // DAMAGE_BONUS  TODO: Specify when damage type is the same as that dealt by the weapon?
+    DamageType bonus_damage_type = 24;
+    // MINIMUM_ABILITY_SCORE
+    string ability = 8;
+    // MINIMUM_ABILITY_SCORE
+    string minimum_ability_score = 9;
+    // DAMAGE_RESISTANCE, DAMAGE_IMMUNITY
+    DamageResistance damage_resistance = 10;
+    // SLAYING
+    Slaying slaying = 11;
+    // ABILITY_SOCRE_INCREASE
+    AbilityScoreIncreaseEnchantment ability_score_increase = 12;
+    // MAX_ABILITY_SCORE_INCREASE
+    MaxAbilityScoreIncrease max_ability_score_increase = 25;
+    // ABILITY_CHECK_ADVANTAGE
+    AbilityCheckAdvantage ability_check_advantage = 13;
+    // SAVING_THROW_ADVANTAGE
+    SavingThrowAdvantage saving_throw_advantage = 14;
+    // DARKVISION
+    Darkvision darkvision = 15;
+    // TALENT_PROFICIENCY
+    string talent = 16;
+    // HIT_POINTS
+    int32 hit_points_per_level = 17;
+    // SPELL_AT_WILL
+    string spell_name = 18;
+    // EFFECT
+    ItemEffect effect = 19;
+    // JUMP_MULTIPLIER
+    int32 jump_multiplier = 20;
+    // WALKING_SPEED, MINIMUM_WALKING_SPEED
+    int32 walking_speed = 21;
+    // CLIMBING_SPEED, SWIMMING_SPEED, FLYING_SPEED
+    MovementSpeed movement_speed = 22;
+    // UNARMED_STRIKE_ENHANCEMENT
+    UnarmedStrikeEnhancement unarmed_strike_enhancement = 23;
+    // CONDITION_IMMUNITY
+    Condition condition = 26;
+}
+
+message ItemState {
+    enum Type {
+        // The item has a name, as a book or a legendary weapon might.
+        NAME = 0;
+        // The item has a spell inscribed on or in it.
+        SPELL = 1;
+        // The item is a container with other items inside.
+        CONTAINER = 2;
+        // The item is the subject of a permanent or temporary magical or mundane effect.
+        EFFECT = 3;
+        // The item has a descriptive property with no specific rules associated with it.
+        DESCRIPTIVE = 4;
+    }
+    Type type = 1;
+    EquipmentSource source = 2;
+    string name = 3;
+    SpellState spell = 4;
+    // Contained equipment
+    Equipment equipment = 5;
+    string description = 6;
+}
+
+message Equipment {
+    string name = 1;
+    int32 quantity = 2;
+    Unit unit = 5;
+    repeated ItemState state = 3;
+    EquipmentSource source = 4;
+}
+
+///////////////
+// Character //
+///////////////
+
+message AbilityScore {
+    string ability = 1;
+    int32 score = 2;
+}
+
+// Although this is called "FeatureSelection", it can also include feature types for which the
+// player does not select any option, such as SHIELD_PROFICIENCY, or where the constraint is such
+// that the player has no actual choice in the matter, as with many ABILITY_SCORE_INCREASE features.
+message FeatureSelection {
+    Feature.Type type = 1;    // Type of the source feature
+    SourceId source_id = 2;   // ID of the source feature
+    string display_name = 3;  // Display name of the source feature
+    bool show_in_feature_list = 4;
+    string selection = 5;
+}
+
+message ResourceState {
+    // Refers to the source_id of the corresponding RESOURCE feature.
+    SourceId source_id = 1;
+    // The current quantity of the resource remaining.
+    int32 quantity = 2;
+}
+
+message Character {
+    int32 id = 1;
+    string name = 2;
+    string race = 3;
+    string subrace = 4;
+    string primary_class = 5;
+    repeated ClassLevel class_level = 6;
+    CustomizedBackground background = 7;
+    ImageSource thumbnail = 8;
+    // The character's base ability scores chosen at creation. Additional ability score bonuses are
+    // represented as FeatureSelections of type ABILITY_SCORE_INCREASE
+    repeated AbilityScore ability_score = 9;
+    repeated FeatureSelection feature = 10;
+    // Represents the current equipment owned by this character.
+    repeated Equipment equipment = 11;
+    // The amount remaining of each resource (ki, rages, sorcery points, breath weapon, etc.)
+    // for each of this character's RESOURCE features.
+    repeated ResourceState resource_state = 12;
+    int32 current_hit_points = 13;
+    bool inspiration = 14;
+    int32 successful_death_saves = 15;
+    int32 failed_death_saves = 16;
+    bool stable = 17;
+    bool dead = 18;
+}
+
+message CharacterList {
+    repeated Character character = 1;
+}

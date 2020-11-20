@@ -1,0 +1,78 @@
+apply plugin: 'com.android.library'
+apply plugin: 'com.google.protobuf'
+
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        // https://github.com/google/protobuf-gradle-plugin
+        classpath "gradle.plugin.com.google.protobuf:protobuf-gradle-plugin:0.8.9"
+    }
+}
+
+android {
+    compileSdkVersion 30
+
+    defaultConfig {
+        minSdkVersion 24
+        targetSdkVersion 30
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.0.0"
+    }
+    plugins {
+        lite {
+            artifact = "com.google.protobuf:protoc-gen-javalite:3.0.0"
+        }
+        // Note that these batch files are windows-specific.  If you need to compile this on
+        // linux, make some shell scripts similar to these batch scripts, and conditionally point
+        // these paths at them instead.
+        text_parser {
+            path = projectDir.absolutePath + '/plugins/protoc-gen-text-parser.bat'
+        }
+        // These plugin names need to be lexicographically after 'lite'.
+        z_add_proto_or_builder {
+            path = projectDir.absolutePath + '/plugins/protoc-gen-add-proto-or-builder.bat'
+        }
+        z_feature_source {
+            path = projectDir.absolutePath + '/plugins/protoc-gen-feature-source.bat'
+        }
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.builtins {
+                remove java
+            }
+            task.plugins {
+                lite { }
+                text_parser { }
+                z_add_proto_or_builder {
+                    outputSubDir = 'lite'
+                }
+                z_feature_source {
+                    outputSubDir = 'lite'
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'com.google.protobuf:protobuf-lite:3.0.0'
+}
