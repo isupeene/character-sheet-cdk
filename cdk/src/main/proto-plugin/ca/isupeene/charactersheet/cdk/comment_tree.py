@@ -12,6 +12,11 @@ class CommentNode(object):
         self.trailing_comments = trailing_comments
         self.children = {}
 
+    def at_path(self, path):
+        if not path:
+            return self
+        return self.children[path[0]].at_path(path[1:])
+
     def __str__(self):
         def child_string(child):
             return textwrap.indent(str(child), "    ")

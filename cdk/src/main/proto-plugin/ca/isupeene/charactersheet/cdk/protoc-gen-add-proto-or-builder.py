@@ -86,14 +86,14 @@ def make_comments(leading_comments, trailing_comments, type_name, snake_field_na
             type_name=type_name, snake_field_name=snake_field_name, tag_number=tag_number)
 
 
-def generate_add_proto_or_builder_functions(request_file, file_comment_tree, message_type):
+def generate_add_proto_or_builder_functions(request_file, file_comment_tree, qualified_name, message_type):
     add_proto_or_builder_functions = []
-    insertion_point = "builder_scope:{}.{}".format(request_file.package, message_type.name)
+    insertion_point = "builder_scope:{}.{}".format(request_file.package, qualified_name)
 
     for field in [f for f in message_type.field if f.label == descriptor.FieldDescriptorProto.LABEL_REPEATED and f.type == descriptor.FieldDescriptorProto.TYPE_MESSAGE]:
-        comment_node = file_comment_tree.children[message_type.name].children[field.name]
+        comment_node = file_comment_tree.at_path(qualified_name.split('.') + [field.name])
         CamelCaseName = string.capwords(field.name, "_").replace("_", "") if field.name != "class" else "Class_"
-        simplified_type_name = field.type_name.replace(".ca.isupeene.charactersheet.cdk.", "")  # TODO: Try using full type name?
+        simplified_type_name = field.type_name.replace(".ca.isupeene.charactersheet.cdk.", "")  # Switch from global scope to implicit 'Model' class scope for java.
         add_proto_or_builder_functions.append(
             FUNCTION_TEMPLATE.format(field_name=CamelCaseName, type_name=simplified_type_name,
                                      comments=make_comments(comment_node.leading_comments.strip(), comment_node.trailing_comments.strip(),
@@ -102,13 +102,30 @@ def generate_add_proto_or_builder_functions(request_file, file_comment_tree, mes
     return add_proto_or_builder_functions, insertion_point
 
 
+def nested_message_types(message_descriptor: descriptor.DescriptorProto, prefix):
+    nested_descriptors = {}
+    for nested_type in message_descriptor.nested_type:
+        qualified_name = '.'.join([prefix, nested_type.name])
+        nested_descriptors[qualified_name] = nested_type
+        nested_descriptors |= nested_message_types(nested_type, qualified_name)
+    return nested_descriptors
+
+def all_message_types(file_descriptor: descriptor.FileDescriptorProto):
+    message_descriptors = {}
+    for message_type in file_descriptor.message_type:
+        message_descriptors[message_type.name] = message_type
+        message_descriptors |= nested_message_types(message_type, message_type.name)
+    return message_descriptors
+
+
 def generate_code(request):
     response = plugin.CodeGeneratorResponse()
     for request_file in request.proto_file:
         java_file_path = "/".join(request_file.package.split(".") + [request_file.name.split("/")[-1].split(".")[0].capitalize() + ".java"])
         file_comment_tree = comment_tree.build_comment_tree(request_file)
-        for message_type in request_file.message_type:
-            add_proto_or_builder_functions, insertion_point = generate_add_proto_or_builder_functions(request_file, file_comment_tree, message_type)
+
+        for qualified_name, message_type in all_message_types(request_file).items():
+            add_proto_or_builder_functions, insertion_point = generate_add_proto_or_builder_functions(request_file, file_comment_tree, qualified_name, message_type)
             if add_proto_or_builder_functions:
                 response_file = response.file.add()
                 response_file.name = java_file_path
@@ -117,7 +134,6 @@ def generate_code(request):
     return response
 
 
-# TODO: Make sure this works on nested types.  Test this on Resource.Quantity.level_progression
 if __name__ == '__main__':
     # Parse request from stdin
     # https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/compiler/PluginProtos.CodeGeneratorRequest
