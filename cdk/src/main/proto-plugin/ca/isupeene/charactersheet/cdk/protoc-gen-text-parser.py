@@ -501,8 +501,8 @@ MESSAGE_FIELD_TEMPLATE = """
 
 
 def generate_field_handler(field):
-	# TODO: Convert to snake-case labels!
 	snake_case_name = field.name
+	# Convert proto field names to java names. Note that the generated java code treats the word 'class' as a special case.
 	CamelCaseName = string.capwords(snake_case_name, "_").replace("_", "") if field.name != "class" else "Class_"
 	simplified_type_name = field.type_name.replace(".ca.isupeene.charactersheet.cdk.", "")
 
@@ -541,13 +541,8 @@ def generate_field_handler(field):
 
 
 def generate_outer_message_parser_function(message_type, parent_name):
-	# TODO: Infer 'Model' from the name of the file, instead of hard-coding it.
-	if parent_name:
-		message_type_string = "Model.{}.{}".format(parent_name, message_type.name)
-		simple_message_type_string = "{}_{}".format(parent_name.replace(".", "_"), message_type.name)
-	else:
-		message_type_string = "Model.{}".format(message_type.name)
-		simple_message_type_string = message_type.name
+	message_type_string = "{}.{}".format(parent_name, message_type.name)
+	simple_message_type_string = '_'.join(parent_name.split('.')[1:] + [message_type.name])
 	
 	field_handlers = []
 	
@@ -563,7 +558,7 @@ def generate_outer_message_parser_function(message_type, parent_name):
 
 # Returns a list of strings - parser functions for the given message type and
 # each of its nested message types.
-def generate_parser_functions(message_type, parent_name=""):
+def generate_parser_functions(message_type, parent_name):
 	new_parent_name = "{}.{}".format(parent_name, message_type.name) if parent_name else message_type.name
 	return (
 		[generate_outer_message_parser_function(message_type, parent_name)] +
@@ -579,16 +574,14 @@ def generate_code(request, response):
 	parser_functions = []
 
 	for request_file in request.proto_file:
-		# TODO: Actually insert this into Model.java for each type.
 		java_file_path = "/".join(request_file.package.split(".") + ["Parser.java"])
+		class_name = string.capwords(request_file.name.split("/")[-1].split(".")[0], '_')
 		for message_type in request_file.message_type:
-			parser_functions += generate_parser_functions(message_type)
+			parser_functions += generate_parser_functions(message_type, class_name)
 
 		response_file = response.file.add()
 		response_file.name = java_file_path
 		response_file.content = FILE_TEMPLATE.format(parser_functions="\n\n".join(parser_functions))
-
-	# response_file.insertion_point = "outer_class_scope"
 
 
 if __name__ == '__main__':
