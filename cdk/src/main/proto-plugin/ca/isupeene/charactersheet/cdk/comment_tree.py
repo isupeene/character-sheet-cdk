@@ -67,6 +67,12 @@ def build_message_field_node(field_descriptor: descriptor_pb2.FieldDescriptorPro
                        path_node.location.leading_comments, path_node.location.trailing_comments)
 
 
+# https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/DescriptorProtos.OneofDescriptorProto.html
+def build_one_of_descriptor_node(one_of_descriptor: descriptor_pb2.OneofDescriptorProto, path_node:  PathNode):
+    return CommentNode(one_of_descriptor.name, 'OneofDescriptorProto',
+                       path_node.location.leading_comments, path_node.location.trailing_comments)
+
+
 # https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/DescriptorProtos.EnumDescriptorProto.html
 def build_enum_descriptor_node(enum_descriptor: descriptor_pb2.EnumDescriptorProto, path_node: PathNode):
     node = CommentNode(enum_descriptor.name, 'EnumDescriptorProto',
@@ -85,6 +91,7 @@ def build_message_descriptor_node(message_descriptor: descriptor_pb2.DescriptorP
     field_list_path_node = path_node.children[2]
     message_list_path_node = path_node.children[3]
     enum_list_path_node = path_node.children[4]
+    oneof_list_path_node = path_node.children[8]
     for i, field_path_node in field_list_path_node.children.items():
         field_descriptor = message_descriptor.field[i]
         node.children[field_descriptor.name] = build_message_field_node(field_descriptor, field_path_node)
@@ -94,15 +101,17 @@ def build_message_descriptor_node(message_descriptor: descriptor_pb2.DescriptorP
     for i, enum_path_node in enum_list_path_node.children.items():
         enum_descriptor = message_descriptor.enum_type[i]
         node.children[enum_descriptor.name] = build_enum_descriptor_node(enum_descriptor, enum_path_node)
+    for i, one_of_path_node in oneof_list_path_node.children.items():
+        one_of_descriptor = message_descriptor.oneof_decl[i]
+        node.children[one_of_descriptor.name] = build_one_of_descriptor_node(one_of_descriptor, one_of_path_node)
     return node
 
 
 # https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/DescriptorProtos.FileDescriptorProto.html
 def build_file_descriptor_node(file_descriptor: descriptor_pb2.FileDescriptorProto, path_node: PathNode):
     node = CommentNode(file_descriptor.name.split("/")[-1], 'FileDescriptorProto', '', '')
-    # TODO: Look up these field numbers by name?
-    message_list_path_node = path_node.children[4]
-    enum_list_path_node = path_node.children[5]
+    message_list_path_node = path_node.children[4]  # FileDescriptorProto: repeated DescriptorProto message_type = 4
+    enum_list_path_node = path_node.children[5]  # FileDescriptorProto: repeated EnumDescriptorProto  enum_type = 5
     for i, message_path_node in message_list_path_node.children.items():
         message_descriptor = file_descriptor.message_type[i]
         node.children[message_descriptor.name] = build_message_descriptor_node(message_descriptor, message_path_node)
@@ -112,7 +121,5 @@ def build_file_descriptor_node(file_descriptor: descriptor_pb2.FileDescriptorPro
     return node
 
 
-# TODO: Handle One-Of messages, once I add some to the model
-# https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/DescriptorProtos.OneofDescriptorProto.html
 def build_comment_tree(file_descriptor: descriptor_pb2.FileDescriptorProto):
     return build_file_descriptor_node(file_descriptor, build_path_tree(file_descriptor.source_code_info))

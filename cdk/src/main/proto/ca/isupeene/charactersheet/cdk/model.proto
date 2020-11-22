@@ -7,14 +7,10 @@ package ca.isupeene.charactersheet.cdk;
 //////////////
 
 message ImageSource {
-    enum Type {
-        STORAGE = 0;
-        ASSET = 1;
+    oneof source_path {
+        string storage_path = 1;
+        string asset_path = 2;
     }
-
-    Type type = 1;
-    string storage_path = 2;
-    string asset_path = 3;
 }
 
 message InfoSource {
