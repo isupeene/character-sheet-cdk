@@ -185,20 +185,31 @@ public class Parser {{
 		}}
 	}}
 	
-	// TODO: Add checks to fail when the wrong token (':' vs '{{') is found based on the field type.
-	private static String ConsumeFieldNameOrEndOfMessage(StreamTokenizer tokenizer) throws IOException, ParseException {{
+	private static String ConsumeFieldNameOrEndOfMessage(StreamTokenizer tokenizer,  Set<String> messageFields, boolean expectEof) throws IOException, ParseException {{
 		tokenizer.nextToken();
 		if (tokenizer.ttype == StreamTokenizer.TT_WORD) {{
 			String fieldName = tokenizer.sval;
 			info(tokenizer.lineno(), "Parsed the field name '" + fieldName);
 			tokenizer.nextToken();
 			if (tokenizer.ttype == ':') {{
-				info(tokenizer.lineno(), "Parsed a colon.");
-				return fieldName;
+				if (messageFields.contains(fieldName)) {{
+					error(tokenizer.lineno(), "Parsed a colon after '" + fieldName + "', when the start of a nested message '{{' was expected.");
+					return "";
+				}}
+				else {{
+					info(tokenizer.lineno(), "Parsed a colon.");
+					return fieldName;
+				}}
 			}}
 			else if (tokenizer.ttype == '{{') {{
-				info(tokenizer.lineno(), "Parsed the start of a nested message.");
-				return fieldName;
+				if (!messageFields.contains(fieldName)) {{
+					error(tokenizer.lineno(), "Parsed an opening brace after '" + fieldName + "', when a colon was expected.");
+					return "";
+				}}
+				else {{
+					info(tokenizer.lineno(), "Parsed the start of a nested message.");
+					return fieldName;
+				}}
 			}}
 			else {{
 				error(tokenizer.lineno(), "Failed to parse either a colon or the start of a nested message.");
@@ -206,12 +217,24 @@ public class Parser {{
 			}}
 		}}
 		else if (tokenizer.ttype == '}}') {{
-			info(tokenizer.lineno(), "Parsed the end of a nested message.");
-			return "";
+			if (expectEof) {{
+				error(tokenizer.lineno(), "Found an extra closing brace '}}' at the end of the file.");
+				return "";
+			}}
+			else {{
+				info(tokenizer.lineno(), "Parsed the end of a nested message.");
+				return "";
+			}}
 		}}
 		else if (tokenizer.ttype == StreamTokenizer.TT_EOF) {{
-			info(tokenizer.lineno(), "Parsed the end of the outermost message.");
-			return "";
+			if (!expectEof) {{
+				error(tokenizer.lineno(), "Found the end-of-file when not all nested messages have been closed. Did you forget a '}}'?.");
+				return "";
+			}}
+			else {{
+				info(tokenizer.lineno(), "Parsed the end of the outermost message.");
+				return "";
+			}}
 		}}
 		else {{
 			error(tokenizer.lineno(), "Failed to parse a field label.");
@@ -239,25 +262,25 @@ FUNCTION_TEMPLATE = """
     public static @NonNull {message_type}.Builder Parse{simple_message_type}(@NonNull InputStream input) throws ParseException {{
         Log.i(TAG, "Trying to parse a {message_type}");
         try {{
-            return Parse{simple_message_type}Impl(GetTokenizer(input));
+            return Parse{simple_message_type}Impl(GetTokenizer(input), true);
         }}
         catch (IOException ex) {{
             throw new ParseException("The input to Parse{simple_message_type} could not be read.", ex);
         }}
     }}
     
-    // TODO: Add checks to fail when a non-repeated field appears more than once.
-    private static @NonNull {message_type}.Builder Parse{simple_message_type}Impl(final StreamTokenizer tokenizer) throws ParseException, IOException {{
+    private static @NonNull {message_type}.Builder Parse{simple_message_type}Impl(final StreamTokenizer tokenizer, boolean isOutermostMessage) throws ParseException, IOException {{
         final {message_type}.Builder builder = {message_type}.newBuilder();
         
         Map<String, Pair<? extends FieldHandler, Boolean>> fieldHandlers = new HashMap<>();
+        Set<String> messageFields = new HashSet<>();
         {field_handlers}
 
 		Set<String> foundFieldNames = new HashSet<>();
 
-        for (String fieldName = ConsumeFieldNameOrEndOfMessage(tokenizer);
+        for (String fieldName = ConsumeFieldNameOrEndOfMessage(tokenizer, messageFields, isOutermostMessage);
             !fieldName.isEmpty();
-            fieldName = ConsumeFieldNameOrEndOfMessage(tokenizer))
+            fieldName = ConsumeFieldNameOrEndOfMessage(tokenizer, messageFields, isOutermostMessage))
         {{
             Pair<? extends FieldHandler, Boolean> pair = fieldHandlers.get(fieldName);
             if (pair == null) error(tokenizer.lineno(), "Parsed a bad field name: " + fieldName);
@@ -284,7 +307,7 @@ FUNCTION_TEMPLATE = """
 #
 #   repeated
 #     'true' if the field is repeated, 'false' otherwise.
-#     Make sure to pass in strings - this Python 'True' / 'False' stuff won't cut it in Java!
+#     Make sure to pass in strings - Java can't understand capitalized 'True' and 'False'.
 INT32_FIELD_TEMPLATE = """
             fieldHandlers.put(
                 "{field_name}",
@@ -310,7 +333,7 @@ INT32_FIELD_TEMPLATE = """
 #
 #   repeated
 #     'true' if the field is repeated, 'false' otherwise.
-#     Make sure to pass in strings - this Python 'True' / 'False' stuff won't cut it in Java!
+#     Make sure to pass in strings - Java can't understand capitalized 'True' and 'False'.
 INT64_FIELD_TEMPLATE = """
             fieldHandlers.put(
                 "{field_name}",
@@ -336,7 +359,7 @@ INT64_FIELD_TEMPLATE = """
 #
 #   repeated
 #     'true' if the field is repeated, 'false' otherwise.
-#     Make sure to pass in strings - this Python 'True' / 'False' stuff won't cut it in Java!
+#     Make sure to pass in strings - Java can't understand capitalized 'True' and 'False'.
 FLOAT_FIELD_TEMPLATE = """
             fieldHandlers.put(
                 "{field_name}",
@@ -362,7 +385,7 @@ FLOAT_FIELD_TEMPLATE = """
 #
 #   repeated
 #     'true' if the field is repeated, 'false' otherwise.
-#     Make sure to pass in strings - this Python 'True' / 'False' stuff won't cut it in Java!
+#     Make sure to pass in strings - Java can't understand capitalized 'True' and 'False'.
 DOUBLE_FIELD_TEMPLATE = """
             fieldHandlers.put(
                 "{field_name}",
@@ -387,7 +410,7 @@ DOUBLE_FIELD_TEMPLATE = """
 #
 #   repeated
 #     'true' if the field is repeated, 'false' otherwise.
-#     Make sure to pass in strings - this Python 'True' / 'False' stuff won't cut it in Java!
+#     Make sure to pass in strings - Java can't understand capitalized 'True' and 'False'.
 BOOL_FIELD_TEMPLATE = """
             fieldHandlers.put(
                 "{field_name}",
@@ -412,7 +435,7 @@ BOOL_FIELD_TEMPLATE = """
 #
 #   repeated
 #     'true' if the field is repeated, 'false' otherwise.
-#     Make sure to pass in strings - this Python 'True' / 'False' stuff won't cut it in Java!
+#     Make sure to pass in strings - Java can't understand capitalized 'True' and 'False'.
 STRING_FIELD_TEMPLATE = """
             fieldHandlers.put(
                 "{field_name}",
@@ -441,7 +464,7 @@ STRING_FIELD_TEMPLATE = """
 #
 #   repeated
 #     'true' if the field is repeated, 'false' otherwise.
-#     Make sure to pass in strings - this Python 'True' / 'False' stuff won't cut it in Java!
+#     Make sure to pass in strings - Java can't understand capitalized 'True' and 'False'.
 ENUM_FIELD_TEMPLATE = """
             fieldHandlers.put(
                 "{field_name}",
@@ -484,19 +507,20 @@ ENUM_FIELD_TEMPLATE = """
 #
 #   repeated
 #     'true' if the field is repeated, 'false' otherwise.
-#     Make sure to pass in strings - this Python 'True' / 'False' stuff won't cut it in Java!
+#     Make sure to pass in strings - Java can't understand capitalized 'True' and 'False'.
 MESSAGE_FIELD_TEMPLATE = """
             fieldHandlers.put(
                 "{field_name}",
                 Pair.create(
                     new FieldHandler() {{
                         public void HandleField() throws IOException, ParseException {{
-                            builder.{field_setter}(Parse{field_type}Impl(tokenizer));
+                            builder.{field_setter}(Parse{field_type}Impl(tokenizer, false));
                         }}
                     }},
                     {repeated}
                 )
             );
+            messageFields.add("{field_name}");
 """
 
 
