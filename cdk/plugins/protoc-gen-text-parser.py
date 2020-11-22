@@ -575,7 +575,6 @@ def generate_code(request, response):
 	# response_file.insertion_point = "outer_class_scope"
 
 
-# TODO: Have Parser use #-style comments instead of //-style, to be consistent with ordinary text proto parsing.
 if __name__ == '__main__':
 	# Parse request from stdin
 	# https://developers.google.com/protocol-buffers/docs/reference/java/com/google/protobuf/compiler/PluginProtos.CodeGeneratorRequest

@@ -1,6 +1,3 @@
-apply plugin: 'com.android.library'
-apply plugin: 'com.google.protobuf'
-
 buildscript {
     repositories {
         maven {
@@ -12,6 +9,14 @@ buildscript {
         classpath "gradle.plugin.com.google.protobuf:protobuf-gradle-plugin:0.8.9"
     }
 }
+
+// Plugin for printing a task tree.  Use with 'gradle :cdk:<task name> :cdk:taskTree'
+plugins {
+    id "com.dorongold.task-tree" version "1.5"
+}
+apply plugin: 'com.android.library'
+apply plugin: 'com.google.protobuf'
+apply from: 'maven-push.gradle'
 
 android {
     compileSdkVersion 30
@@ -51,6 +56,9 @@ protobuf {
         z_feature_source {
             path = projectDir.absolutePath + '/plugins/protoc-gen-feature-source.bat'
         }
+        z_gen_doc {
+            path = projectDir.absolutePath + '/plugins/protoc-gen-doc.exe'
+        }
     }
     generateProtoTasks {
         all().each { task ->
@@ -66,13 +74,54 @@ protobuf {
                 z_feature_source {
                     outputSubDir = 'lite'
                 }
+                z_gen_doc {
+                    outputSubDir = 'lite'
+                }
             }
+            task.inputs.files(
+                    projectDir.absolutePath + '/plugins/protoc-gen-text-parser.bat',
+                    projectDir.absolutePath + '/plugins/protoc-gen-text-parser.py',
+                    projectDir.absolutePath + '/plugins/protoc-gen-add-proto-or-builder.bat',
+                    projectDir.absolutePath + '/plugins/protoc-gen-add-proto-or-builder.py',
+                    projectDir.absolutePath + '/plugins/protoc-gen-feature-source.bat',
+                    projectDir.absolutePath + '/plugins/protoc-gen-feature-source.py',
+                    projectDir.absolutePath + '/plugins/protoc-gen-doc.exe'
+            )
         }
     }
 }
 
+// TODO: When java code is added, make sure to uncomment this and add its output to the archive task!
+//task javadoc(type: Javadoc) {
+//    failOnError false
+//    from android.sourceSets.main.java.sourceDirectories
+//    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+//    classpath += configurations.compile
+//}
+
+
+task javadocJar(type: Jar) {
+    archiveClassifier.set("javadoc")
+    from projectDir.absolutePath + "/build/generated/source"
+    include "**/*.html"
+    includeEmptyDirs false
+}
+
+task androidSourcesJar(type: Jar) {
+    archiveClassifier.set("sources")
+    from android.sourceSets.main.proto.sourceDirectories
+}
+
+artifacts {
+    archives androidSourcesJar
+    archives javadocJar
+}
+
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'com.google.protobuf:protobuf-lite:3.0.0'
+}
+
+task printArchives() {
+    println configurations.archives.artifacts
 }

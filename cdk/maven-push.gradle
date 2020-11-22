@@ -1,0 +1,67 @@
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+def isReleaseBuild() {
+    return !VERSION_NAME.contains("SNAPSHOT")
+}
+
+// TODO: Avoid deprecated build rules
+// TODO: Rename namespace to include 'cdk'
+// TODO: Document all proto methods
+// TODO: Migrate additional java code for working with the protos
+// TODO: Add the plugin code to the sources jar
+// TODO: Generate javadoc for the generated java sources
+afterEvaluate { project ->
+    uploadArchives {
+        repositories {
+            mavenDeployer {
+                beforeDeployment { MavenDeployment publication -> signing.signPom(publication) }
+
+                pom.groupId = 'ca.isupeene'
+                pom.artifactId = 'charactersheet.cdk'
+                pom.version = VERSION_NAME
+
+                // NEXUS_USERNAME and NEXUS_PASSWORD defined outside of source control
+                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                    authentication(userName: NEXUS_USERNAME, password: NEXUS_PASSWORD)
+                }
+                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                    authentication(userName: NEXUS_USERNAME, password: NEXUS_PASSWORD)
+                }
+
+                pom.project {
+                    name 'CharacterSheetCDK'
+                    packaging 'aar'
+                    description 'Content Development Kit for D&D 5e'
+                    url 'https://github.com/isupeene/character-sheet-cdk'
+
+                    scm {
+                        url 'https://github.com/isupeene/character-sheet-cdk.git'
+                        connection 'scm:git@github.com:isupeene/character-sheet-cdk.git'
+                        developerConnection 'scm:git@github.com:isupeene/character-sheet-cdk.git'
+                    }
+
+                    licenses {
+                        license {
+                            name 'The Apache Software License, Version 2.0'
+                            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        }
+                    }
+
+                    developers {
+                        developer {
+                            id 'isupeene'
+                            name 'Isaac Supeene'
+                            email 'supeene.i@gmail.com'
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    signing {
+        required { isReleaseBuild() && gradle.taskGraph.hasTask("uploadArchives") }
+        sign configurations.archives
+    }
+}
