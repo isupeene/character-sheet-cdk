@@ -6,10 +6,8 @@ def isReleaseBuild() {
 }
 
 // TODO: Avoid deprecated build rules
-// TODO: Rename namespace to include 'cdk'
 // TODO: Document all proto methods
 // TODO: Migrate additional java code for working with the protos
-// TODO: Just remove the proto-gen-doc if we're not using it anyway
 afterEvaluate { project ->
     uploadArchives {
         repositories {
@@ -59,6 +57,7 @@ afterEvaluate { project ->
         }
     }
 
+    // Signing parameters (key id, password, keyring file) defined outside of source control
     signing {
         required { isReleaseBuild() && gradle.taskGraph.hasTask("uploadArchives") }
         sign configurations.archives
