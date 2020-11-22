@@ -91,25 +91,29 @@ protobuf {
     }
 }
 
-// TODO: When java code is added, make sure to uncomment this and add its output to the archive task!
-//task javadoc(type: Javadoc) {
-//    failOnError false
-//    from android.sourceSets.main.java.sourceDirectories
-//    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
-//    classpath += configurations.compile
-//}
-
+// TODO: When java code is added, make sure to add it to this task's source!
+task javadoc(type: Javadoc) {
+    failOnError false
+    source protobuf.generatedFilesBaseDir
+    include '**/*.java'
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    classpath += configurations.compile
+    classpath += configurations.androidApis
+}
 
 task javadocJar(type: Jar) {
     archiveClassifier.set("javadoc")
-    from projectDir.absolutePath + "/build/generated/source"
-    include "**/*.html"
+    from javadoc
     includeEmptyDirs false
 }
 
 task androidSourcesJar(type: Jar) {
     archiveClassifier.set("sources")
     from android.sourceSets.main.proto.sourceDirectories
+    from 'plugins/'
+    include '**/*.proto'
+    include '*.bat'
+    include '*.py'
 }
 
 artifacts {
@@ -120,8 +124,4 @@ artifacts {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'com.google.protobuf:protobuf-lite:3.0.0'
-}
-
-task printArchives() {
-    println configurations.archives.artifacts
 }

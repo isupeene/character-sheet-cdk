@@ -9,8 +9,7 @@ def isReleaseBuild() {
 // TODO: Rename namespace to include 'cdk'
 // TODO: Document all proto methods
 // TODO: Migrate additional java code for working with the protos
-// TODO: Add the plugin code to the sources jar
-// TODO: Generate javadoc for the generated java sources
+// TODO: Just remove the proto-gen-doc if we're not using it anyway
 afterEvaluate { project ->
     uploadArchives {
         repositories {
