@@ -6,24 +6,20 @@ package ca.isupeene.charactersheet.cdk;
 // Metadata //
 //////////////
 
+// TODO: Decide whether any of the more complex cases should use oneof instead of a Type enum + extra fields
 message ImageSource {
-    oneof source_path {
+    oneof source_locator {
         string storage_path = 1;
         string asset_path = 2;
     }
 }
 
 message InfoSource {
-    enum Type {
-        STORAGE = 0;
-        ASSET = 1;
-        URI = 2;
+    oneof source_locator {
+        string storage_path = 1;
+        string asset_path = 2;
+        string uri = 3;
     }
-
-    Type type = 1;
-    string storage_path = 2;
-    string asset_path = 3;
-    string uri = 4;
 }
 
 message InfoPage {
