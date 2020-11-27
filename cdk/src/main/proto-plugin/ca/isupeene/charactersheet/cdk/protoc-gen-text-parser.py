@@ -43,7 +43,7 @@ public class Parser {{
 	 * The error message will indicate the general nature of the error and the line on which
 	 * it occurred.
 	 */
-    public static class ParseException extends Exception {{
+    public static class ParseException extends IOException {{
 		ParseException(String errorMessage, Throwable innerException) {{
 			super(errorMessage, innerException);
 		}}
@@ -66,12 +66,12 @@ public class Parser {{
     }}
 
     private static void error(int lineNumber, String message) throws ParseException {{
-        Log.e(TAG, String.format(LOG_FORMAT, lineNumber, message));
+        // Log.e(TAG, String.format(LOG_FORMAT, lineNumber, message));
         throw new ParseException(message, lineNumber);
     }}
     
     interface FieldHandler {{
-        void HandleField() throws IOException, ParseException;
+        void HandleField() throws IOException;
     }}
 	
 	private static StreamTokenizer GetTokenizer(InputStream input) {{
@@ -89,7 +89,7 @@ public class Parser {{
         return tokenizer;
 	}}
 	
-	private static int ConsumeInt32(StreamTokenizer tokenizer) throws IOException, ParseException {{
+	private static int ConsumeInt32(StreamTokenizer tokenizer) throws IOException {{
 		tokenizer.nextToken();
 		if (tokenizer.ttype == StreamTokenizer.TT_NUMBER) {{
 			info(tokenizer.lineno(), "Parsed a number.");
@@ -101,7 +101,7 @@ public class Parser {{
 		}}
 	}}
 	
-	private static long ConsumeInt64(StreamTokenizer tokenizer) throws IOException, ParseException {{
+	private static long ConsumeInt64(StreamTokenizer tokenizer) throws IOException {{
 		tokenizer.nextToken();
 		if (tokenizer.ttype == StreamTokenizer.TT_NUMBER) {{
 			info(tokenizer.lineno(), "Parsed a number.");
@@ -113,7 +113,7 @@ public class Parser {{
 		}}
 	}}
 	
-	private static float ConsumeFloat(StreamTokenizer tokenizer) throws IOException, ParseException {{
+	private static float ConsumeFloat(StreamTokenizer tokenizer) throws IOException {{
 		tokenizer.nextToken();
 		if (tokenizer.ttype == StreamTokenizer.TT_NUMBER) {{
 			info(tokenizer.lineno(), "Parsed a number.");
@@ -125,7 +125,7 @@ public class Parser {{
 		}}
 	}}
 	
-	private static double ConsumeDouble(StreamTokenizer tokenizer) throws IOException, ParseException {{
+	private static double ConsumeDouble(StreamTokenizer tokenizer) throws IOException {{
 		tokenizer.nextToken();
 		if (tokenizer.ttype == StreamTokenizer.TT_NUMBER) {{
 			info(tokenizer.lineno(), "Parsed a number.");
@@ -137,7 +137,7 @@ public class Parser {{
 		}}
 	}}
 	
-	private static boolean ConsumeBool(StreamTokenizer tokenizer) throws IOException, ParseException {{
+	private static boolean ConsumeBool(StreamTokenizer tokenizer) throws IOException {{
 		tokenizer.nextToken();
 		if (tokenizer.ttype == StreamTokenizer.TT_WORD) {{
 		    if (tokenizer.sval.toLowerCase().equals("true")) {{
@@ -185,7 +185,7 @@ public class Parser {{
 		}}
 	}}
 	
-	private static String ConsumeFieldNameOrEndOfMessage(StreamTokenizer tokenizer,  Set<String> messageFields, boolean expectEof) throws IOException, ParseException {{
+	private static String ConsumeFieldNameOrEndOfMessage(StreamTokenizer tokenizer,  Set<String> messageFields, boolean expectEof) throws IOException {{
 		tokenizer.nextToken();
 		if (tokenizer.ttype == StreamTokenizer.TT_WORD) {{
 			String fieldName = tokenizer.sval;
@@ -264,12 +264,15 @@ FUNCTION_TEMPLATE = """
         try {{
             return Parse{simple_message_type}Impl(GetTokenizer(input), true);
         }}
+        catch (ParseException ex) {{
+        	throw ex;
+        }}
         catch (IOException ex) {{
             throw new ParseException("The input to Parse{simple_message_type} could not be read.", ex);
         }}
     }}
     
-    private static @NonNull {message_type}.Builder Parse{simple_message_type}Impl(final StreamTokenizer tokenizer, boolean isOutermostMessage) throws ParseException, IOException {{
+    private static @NonNull {message_type}.Builder Parse{simple_message_type}Impl(final StreamTokenizer tokenizer, boolean isOutermostMessage) throws IOException {{
         final {message_type}.Builder builder = {message_type}.newBuilder();
         
         Map<String, Pair<? extends FieldHandler, Boolean>> fieldHandlers = new HashMap<>();
@@ -313,7 +316,7 @@ INT32_FIELD_TEMPLATE = """
                 "{field_name}",
                 Pair.create(
                     new FieldHandler() {{
-                        public void HandleField() throws IOException, ParseException {{
+                        public void HandleField() throws IOException {{
                             builder.{field_setter}(ConsumeInt32(tokenizer));
                         }}
                     }},
@@ -339,7 +342,7 @@ INT64_FIELD_TEMPLATE = """
                 "{field_name}",
                 Pair.create(
                     new FieldHandler() {{
-                        public void HandleField() throws IOException, ParseException {{
+                        public void HandleField() throws IOException {{
                             builder.{field_setter}(ConsumeInt64(tokenizer));
                         }}
                     }},
@@ -365,7 +368,7 @@ FLOAT_FIELD_TEMPLATE = """
                 "{field_name}",
                 Pair.create(
                     new FieldHandler() {{
-                        public void HandleField() throws IOException, ParseException {{
+                        public void HandleField() throws IOException {{
                             builder.{field_setter}(ConsumeFloat(tokenizer));
                         }}
                     }},
@@ -391,7 +394,7 @@ DOUBLE_FIELD_TEMPLATE = """
                 "{field_name}",
                 Pair.create(
                     new FieldHandler() {{
-                        public void HandleField() throws IOException, ParseException {{
+                        public void HandleField() throws IOException {{
                             builder.{field_setter}(ConsumeDouble(tokenizer));
                         }}
                     }},
@@ -416,7 +419,7 @@ BOOL_FIELD_TEMPLATE = """
                 "{field_name}",
                 Pair.create(
                     new FieldHandler() {{
-                        public void HandleField() throws IOException, ParseException {{
+                        public void HandleField() throws IOException {{
                             builder.{field_setter}(ConsumeBool(tokenizer));
                         }}
                     }},
@@ -441,7 +444,7 @@ STRING_FIELD_TEMPLATE = """
                 "{field_name}",
                 Pair.create(
                     new FieldHandler() {{
-                        public void HandleField() throws IOException, ParseException {{
+                        public void HandleField() throws IOException {{
                             builder.{field_setter}(ConsumeString(tokenizer));
                         }}
                     }},
@@ -470,7 +473,7 @@ ENUM_FIELD_TEMPLATE = """
                 "{field_name}",
                 Pair.create(
                     new FieldHandler() {{
-                        public void HandleField() throws IOException, ParseException {{
+                        public void HandleField() throws IOException {{
                             // Some of the logic that should properly be contained in ConsumeEnum is moved here
                             // so that we can use the faster valueOf function associated with a specific enum type.
                             String enumString = ConsumeEnum(tokenizer);
@@ -513,7 +516,7 @@ MESSAGE_FIELD_TEMPLATE = """
                 "{field_name}",
                 Pair.create(
                     new FieldHandler() {{
-                        public void HandleField() throws IOException, ParseException {{
+                        public void HandleField() throws IOException {{
                             builder.{field_setter}(Parse{field_type}Impl(tokenizer, false));
                         }}
                     }},

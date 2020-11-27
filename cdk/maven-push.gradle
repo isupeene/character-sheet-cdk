@@ -7,7 +7,6 @@ def isReleaseBuild() {
 
 // TODO: Avoid deprecated build rules
 // TODO: Document all proto methods
-// TODO: Migrate additional java code for working with the protos
 afterEvaluate { project ->
     uploadArchives {
         repositories {

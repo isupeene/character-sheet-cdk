@@ -11,15 +11,18 @@ message ImageSource {
     oneof source_locator {
         string storage_path = 1;
         string asset_path = 2;
+        string content_path = 3;
     }
+    string authority = 4;
 }
 
 message InfoSource {
     oneof source_locator {
         string storage_path = 1;
         string asset_path = 2;
-        string uri = 3;
+        string content_path = 3;
     }
+    string authority = 4;
 }
 
 message InfoPage {
@@ -154,7 +157,7 @@ message Spell {
     bool ritual = 6;
     // How long the spell takes to cast.
     // For reaction spells, the trigger should be included, and phrased as if to complete the
-    // sentence: "You may cast this spell as a reaction <trigger>", and be copied from the
+    // sentence: "You may cast this spell as a reaction {trigger}", and be copied from the
     // Player's Handbook.
     // For spells whose casting time is one action, you may omit the casting time.
     CastingTime casting_time = 7;
@@ -343,24 +346,23 @@ message Item {
     string indefinite_name = 2;
     string plural_name = 3;
     string short_description = 4;
-    string full_description = 5;
-    Type type = 6;
-    InfoSource info_source = 7;
+    Type type = 5;
+    InfoSource info_source = 6;
     // This is a little broader than the fluid unit used to quantify
     // fluid equipment.  This is used to describe the costs and weights
     // of objects in terms of the unit, for example the amount a chain
     // weighs "per foot".
-    string unit = 8;
-    int32 unit_cost_cp = 9;
-    int32 unit_weight_lb = 10;
-    int32 unit_weight_quarter_lb = 11;
-    WeaponInfo weapon_info = 12;
-    ArmorInfo armor_info = 13;
-    repeated Equipment equipment_pack_contents = 14;
-    ContainerInfo container_info = 15;
-    AnimalInfo animal_info = 16;
-    int32 speed_miles_per_hour = 17;
-    bool fluid = 18;
+    string unit = 7;
+    int32 unit_cost_cp = 8;
+    int32 unit_weight_lb = 9;
+    int32 unit_weight_quarter_lb = 10;
+    WeaponInfo weapon_info = 11;
+    ArmorInfo armor_info = 12;
+    repeated Equipment equipment_pack_contents = 13;
+    ContainerInfo container_info = 14;
+    AnimalInfo animal_info = 15;
+    int32 speed_miles_per_hour = 16;
+    bool fluid = 17;
 }
 
 message ItemList {
