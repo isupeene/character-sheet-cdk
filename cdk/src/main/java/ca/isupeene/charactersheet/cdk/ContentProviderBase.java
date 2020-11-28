@@ -84,7 +84,7 @@ public abstract class ContentProviderBase extends ContentProvider {
      */
     @Override
     public Bundle call(@NonNull String method, @Nullable String arg, @Nullable Bundle extras) {
-        Log.i(TAG, "Received call for " + method);
+        Log.i(TAG, "Received call for " + method + " " + arg);
         Bundle result = new Bundle();
         try {
             DlcType dlcType = DlcType.ForTag(method);
@@ -94,6 +94,7 @@ public abstract class ContentProviderBase extends ContentProvider {
                 case CLASS:
                 case FEAT:
                 case ITEM:
+                case RACE:
                 case SPELL:
                 case TALENT:
                     result.putByteArray(method, ReadDlcAsBytes(dlcType));
