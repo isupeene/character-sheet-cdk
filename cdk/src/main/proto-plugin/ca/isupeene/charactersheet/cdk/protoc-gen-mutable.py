@@ -6,7 +6,7 @@ from google.protobuf.compiler import plugin_pb2 as plugin
 
 import comment_tree
 
-
+# TODO: Add a mutable function that takes a lambda, to enable builder chaining.
 NON_REPEATED_FUNCTION_TEMPLATE = """
       {comments}
       public {type_name}.Builder mutable{field_name}() {{
@@ -32,6 +32,7 @@ SNEAKY_PROTECTED_MEMBER_ACCESS_TEMPLATE = """
       // Prefix with underscore to avoid colliding with a hypothetical field named 'instance'.
       Builder _setInstance({type_name} instance) {{
         this.instance = instance;
+        this.instance.memoizedSerializedSize = -1;
         return this;
       }}
 """
