@@ -34,6 +34,25 @@ message MultiPageInfo {
     repeated InfoPage page = 1;
 }
 
+////////////////////
+// Abilitie Score //
+////////////////////
+
+enum Ability {
+    ABILITY_UNSPECIFIED = 0;
+    STRENGTH = 1;
+    DEXTERITY = 2;
+    CONSTITUTION = 3;
+    WISDOM = 4;
+    INTELLIGENCE = 5;
+    CHARISMA = 6;
+}
+
+message AbilityScore {
+    Ability ability = 1;
+    int32 score = 2;
+}
+
 ///////////////
 // Branching //
 ///////////////
@@ -376,7 +395,7 @@ message ItemList {
 message Talent {
     string name = 1;
     string category = 2;
-    string ability = 3;
+    Ability ability = 3;
     // Hidden talents can't be selected normally, but must be granted as a feature, e.g. Druidic or Thieves' Cant
     bool hidden = 4;
 }
@@ -399,7 +418,7 @@ message FeatPrerequisite {
         SPELLCASTING = 2;
     }
     Type type = 1;
-    repeated string ability = 2;
+    repeated Ability ability = 2;
     ArmorCategory armor_category = 3;
 }
 
@@ -431,7 +450,7 @@ message AbilityScoreIncreaseConstraint {
     }
 
     Type type = 1;
-    repeated string specific_ability_score = 2;
+    repeated Ability specific_ability_score = 2;
     string correlation_key = 3;  // TODO: Rename to exclusion_key, or exclusion_correlation_key?
 }
 
@@ -480,7 +499,7 @@ message SavingThrowProficiencyOptionConstraint {
         CORRELATION = 3;
     }
     Type type = 1;
-    repeated string specific_ability = 2;
+    repeated Ability specific_ability = 2;
     string correlation_key = 3;
 }
 
@@ -574,7 +593,7 @@ message SpellsPrepared {
     Type type = 1;
     Quantity quantity = 2;  // Not used for source: SPECIFIC
     string spell_list = 3;
-    string ability = 4;  // Not used for source: SPECIFIC
+    Ability ability = 4;  // Not used for source: SPECIFIC
     repeated string specific_spell = 5;  // Only used for source: SPECIFIC
 }
 
@@ -646,7 +665,7 @@ message Resource {
         repeated LevelQuantity level_progression = 2;
         // TODO: Should abilities be an enum?
         // Only applies to type ABILITY_SCORE
-        string ability = 3;
+        Ability ability = 3;
         // Only applies to type ABILITY_SCORE
         int32 extra_uses = 4;
         // Only applies to type CLASS_LEVEL_EXACT.  Values less than 1 are treated as 1.
@@ -688,7 +707,7 @@ message PassiveSkillBonus {
 }
 
 message UnarmoredDefense {
-    string ability = 1;
+    Ability ability = 1;
     bool shields_allowed = 2;
 }
 
@@ -988,12 +1007,12 @@ message Slaying {
 }
 
 message AbilityScoreIncreaseEnchantment {
-    string ability = 1;
+    Ability ability = 1;
     int32 bonus = 2;
 }
 
 message MaxAbilityScoreIncrease {
-    string ability = 1;
+    Ability ability = 1;
     int32 increase = 2;
 }
 
@@ -1005,7 +1024,7 @@ message AbilityCheckAdvantage {
     Type type = 1;
     // Used for both ABILITY and SKILL types.  For example, an enchantment or feature that grants a
     // bonus to Charisma (Persuasion) checks would not apply to Intelligence (Persuasion) checks.
-    string ability = 2;
+    Ability ability = 2;
     string skill = 3;
 }
 
@@ -1015,7 +1034,7 @@ message SavingThrowAdvantage {
         ABILITY = 1;
     }
     Type type = 1;
-    string ability = 2;
+    Ability ability = 2;
 }
 
 message Darkvision {
@@ -1161,9 +1180,9 @@ message ItemEnchantment {
     // DAMAGE_BONUS  TODO: Specify when damage type is the same as that dealt by the weapon?
     DamageType bonus_damage_type = 24;
     // MINIMUM_ABILITY_SCORE
-    string ability = 8;
+    Ability ability = 8;
     // MINIMUM_ABILITY_SCORE
-    string minimum_ability_score = 9;
+    int32 minimum_ability_score = 9;
     // DAMAGE_RESISTANCE, DAMAGE_IMMUNITY
     DamageResistance damage_resistance = 10;
     // SLAYING
@@ -1231,11 +1250,6 @@ message Equipment {
 ///////////////
 // Character //
 ///////////////
-
-message AbilityScore {
-    string ability = 1;
-    int32 score = 2;
-}
 
 // Although this is called "FeatureSelection", it can also include feature types for which the
 // player does not select any option, such as SHIELD_PROFICIENCY, or where the constraint is such
